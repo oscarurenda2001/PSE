@@ -71,6 +71,7 @@ bool BSP_I2C_ReadRegister(uint8_t reg, uint8_t *val) {
 	seq.buf[1].data = data;
 	seq.buf[1].len = 1;
 
+
 	I2C_Status = I2C_TransferInit(I2C1, &seq);
 
 	while (I2C_Status == i2cTransferInProgress) {
@@ -85,31 +86,7 @@ bool BSP_I2C_ReadRegister(uint8_t reg, uint8_t *val) {
 
 	return true;
 }
-bool BSP_I2C_ReadRegister16(uint8_t reg, uint16_t *val) {
-	I2C_TransferReturn_TypeDef I2C_Status;
-	I2C_TransferSeq_TypeDef seq;
-	uint8_t data[2];
 
-	seq.addr = device_addr;
-	seq.flags = I2C_FLAG_WRITE_READ;
-
-	seq.buf[0].data = &reg;
-	seq.buf[0].len = 1;
-	seq.buf[1].data = data;
-	seq.buf[1].len = 2;
-
-	I2C_Status = I2C_TransferInit(I2C1, &seq);
-	while (I2C_Status == i2cTransferInProgress) {
-		I2C_Status = I2C_Transfer(I2C1);
-	}
-
-	if (I2C_Status != i2cTransferDone) {
-		return false;
-	}
-
-	*val = ((uint16_t)data[0] << 8) | data[1];
-	return true;
-}
 bool I2C_Test() {
 	uint8_t data;
 
