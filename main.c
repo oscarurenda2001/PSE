@@ -18,6 +18,7 @@
 
 #define STACK_SIZE_FOR_TASK	(configMINIMAL_STACK_SIZE + 10)
 #define TASK_PRIORITY      	(tskIDLE_PRIORITY + 1)
+#define distancia			17
 QueueHandle_t xQueue;
 /***************************************************************************//**
  * @brief Simple task which is blinking led
@@ -59,7 +60,7 @@ static void LedBlink2(void *pParameters)
 	vTaskDelay(delay);
   }
 }
-static void LedBlink3(void *pParameters)
+/*static void LedBlink3(void *pParameters)
 {
   (void) pParameters;
   const portTickType delay = pdMS_TO_TICKS(2000);
@@ -69,11 +70,23 @@ static void LedBlink3(void *pParameters)
 	//printf("Task 2\n");
 	xQueueReceive(xQueue, &(valor), 1000);
 	/*printf("Lecture %d \n", valor.contador );
-	printf("Lecture lletra %d \n", valor.numero);*/
+	printf("Lecture lletra %d \n", valor.numero);
 	vTaskDelay(delay);
   }
-}
-
+}*/
+/*
+static void readMetric(void *pParameters)
+{
+	(void) pParameters;
+	const portTickType delay = pdMS_TO_TICKS(1000);
+	uint8_t distance;
+	for(;;){
+	BSP_I2C_ReadRegister(0xC0, &distance);
+	printf("%d\n",distance);
+	vTaskDelay(delay);
+	}
+} Hauria de ser aixi pero no va el readRegister.
+*/
 /***************************************************************************//**
  * @brief  Main function
  ******************************************************************************/
@@ -93,15 +106,10 @@ int main(void)
   /*Create two task for blinking leds*/
   xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
   xTaskCreate(LedBlink2, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-  xTaskCreate(LedBlink3, (const char *) "LedBlink3", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  //xTaskCreate(readMetric, (const char *) "readMetric", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL); Hauria de ser aixi, pero no va
+  xTaskCreate(LedBlink2, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
 
   /*Start FreeRTOS Scheduler*/
-  uint16_t distance;
-  if (BSP_I2C_ReadRegister16(0x10, &distance)) {
-      printf("Distancia: %d mm\n", distance);
-  } else {
-      printf("Error al leer distancia\n");
-  }
   vTaskStartScheduler();
 
   return 0;
