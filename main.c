@@ -8,8 +8,9 @@
 #include "queue.h"
 #include "semphr.h"
 #include "croutine.h"
-
+#include "em_device.h"
 #include "em_chip.h"
+#include "em_gpio.h"
 #include "bsp.h"
 #include "bsp_trace.h"
 
@@ -46,6 +47,18 @@ static void LedBlink(void *pParameters)
   }
 }
 
+static void ReadData(void *pParameters)
+{
+  (void) pParameters;
+  const portTickType delay = pdMS_TO_TICKS(500);
+  for (;; ) {
+	  uint16_t range = 0;
+	  //
+	  xQueueSend(xQueue, (void *) &range, 1000);
+	  vTaskDelay(delay);
+  }
+}
+
 static void LedBlink2(void *pParameters)
 {
   (void) pParameters;
@@ -57,6 +70,30 @@ static void LedBlink2(void *pParameters)
 	xQueueReceive(xQueue, &(valor), 1000);
 	Message.contador = Message.contador + 1;
 	xQueueSend(xQueue, (void *) &Message, 1000);
+	vTaskDelay(delay);
+  }
+}
+static void DataWork(void *pParameters)
+{
+  (void) pParameters;
+  const portTickType delay = pdMS_TO_TICKS(1000);
+  uint16_t range;
+  char led = "";
+  for (;; ) {
+	BSP_LedToggle(0);
+
+	xQueueReceive(xQueue, &range, 1000);
+	if(range < 25000){
+		led = "r";
+	}else{
+		if(range >= 25000 && range < 35000){
+			led = "y";
+		}
+		else{
+			led = "g";
+		}
+	}
+	xQueueSend(xQueue, (void *) &led, 1000);
 	vTaskDelay(delay);
   }
 }
@@ -90,27 +127,44 @@ static void readMetric(void *pParameters)
 /***************************************************************************//**
  * @brief  Main function
  ******************************************************************************/
+
+
 int main(void)
 {
   /* Chip errata */
   CHIP_Init();
+
   /* If first word of user data page is non-zero, enable Energy Profiler trace */
   BSP_TraceProfilerSetup();
-  BSP_I2C_Init(0x52);
-  /* Initialize LED driver */
-  BSP_LedsInit();
-  /* Setting state of leds*/
-  BSP_LedSet(0);
-  BSP_LedSet(1);
-  xQueue = xQueueCreate( 10, sizeof( struct Message) );
-  /*Create two task for blinking leds*/
-  xTaskCreate(LedBlink, (const char *) "LedBlink1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-  xTaskCreate(LedBlink2, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
-  //xTaskCreate(readMetric, (const char *) "readMetric", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL); Hauria de ser aixi, pero no va
-  xTaskCreate(LedBlink2, (const char *) "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
 
-  /*Start FreeRTOS Scheduler*/
+  /* Inicializa I2C si lo necesitas */
+  BSP_I2C_Init(0x52);
+
+  /* Inicializa driver de LEDs del kit */
+  BSP_LedsInit();
+
+  /* Configura GPIOs de salida para los LEDs del semáforo */
+  GPIO_PinModeSet(gpioPortD, 0, gpioModePushPull, 0); // Rojo
+  GPIO_PinModeSet(gpioPortD, 1, gpioModePushPull, 0); // Amarillo
+  GPIO_PinModeSet(gpioPortD, 2, gpioModePushPull, 0); // Verde
+
+  /*Enciende LED rojo y amarillo al inicio */
+  GPIO_PinOutSet(gpioPortD, 0); // Enciende Rojo
+  GPIO_PinOutSet(gpioPortD, 1); // Enciende Amarillo
+  GPIO_PinOutClear(gpioPortD, 2); // Asegura que el verde está apagado
+
+  /* Crea cola de mensajes */
+  xQueue = xQueueCreate(10, sizeof(struct Message));
+
+  /* Crea tareas de FreeRTOS */
+  xTaskCreate(LedBlink, "LedBlink1", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  xTaskCreate(LedBlink2, "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+  // xTaskCreate(readMetric, "readMetric", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL); // Revisa esta línea
+  xTaskCreate(LedBlink2, "LedBlink2", STACK_SIZE_FOR_TASK, NULL, TASK_PRIORITY, NULL);
+
+  /* Inicia el planificador de FreeRTOS */
   vTaskStartScheduler();
 
   return 0;
 }
+
